@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css" integrity="sha384-Smlep5jCw/wG7hdkwQ/Z5nLIefveQRIY9nfy6xoR1uRYBtpZgI6339F5dgvm/e9B" crossorigin="anonymous">
+    <link href="css/shop-homepage.css" rel="stylesheet">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  </head>
+  <body>
+
+    <div id="app">
+
+      <div class="navbar bg-dark">
+        <div class="container">
+          <a class="navbar-brand" href="#">Livecode1</a>
+          <div class="header-right" v-if="!logoutBtn">
+            <input type="text" placeholder="email" v-model="user.email">
+            <input type="password" placeholder="password" v-model="user.password">
+            <button @click="login">Login</button>
+          </div>
+          <div class="header-right" v-if="logoutBtn">
+            <button @click="logout">Logout</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page Content -->
+      <div class="container container-content">
+        <div class="row">
+          <div class="col-lg-3">
+            <div class="list-group">
+              <a href="#" class="list-group-item">All Quotes</a>
+            </div>
+          </div>
+          <!-- /.col-lg-3 -->
+
+          <div class="col-lg-9">
+            <div class="row">
+              <div class="col-lg-9 col-sm-9 portfolio-item">
+                <div class="alert alert-warning" role="alert" v-if="translateMsg !== ''">
+                  Translate Quote to English: <br/>
+                  <strong>{{ translateMsg }}</strong>
+                </div>
+
+                <div class="alert alert-danger" v-if="loginFailedMsg !== '' ">
+                  {{ loginFailedMsg }}
+                </div>
+                <div class="alert alert-success" v-if="loginSuccessMsg !== '' ">
+                  {{ loginSuccessMsg }}
+                </div>
+                <div class="alert alert-success" v-if="logoutMsg !== '' ">
+                  {{ logoutMsg }}
+                </div>
+                <div v-if="authenticated">
+                  <div class="form-group">
+                    <textarea class="form-control" rows="3" placeholder="Quote" v-model="quote.status"></textarea>
+                  </div>
+                  <div class="form-group">
+                    <button type="submit" class="btn btn-primary" @click="createQuote">Submit</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <hr>
+            <div class="row">
+
+              <div class="col-lg-6 col-sm-6 portfolio-item" v-for="quote in quotes">
+                <div class="card h-70">
+                  <div class="card-body">
+                    <h4 class="card-title">
+                      {{ quote.status }}
+                    </h4>
+                    <a href="javascript:void(0)" @click="deleteQuote(quote._id)" v-if="quote.mine && authenticated">Delete</a> | <a href="javascript:void(0)" @click="translateQuote(quote._id)">Translate</a>
+                    <p class="translate font-italic" v-if="quote.translated">
+                      {{ quote.translated }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+      <!-- /.container -->
+    </div> <!-- ./vue -->
+
+
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js" integrity="sha384-o+RDsa0aLu++PJvFqy8fFScvbHFLtbvScb8AjopnFD+iEQ7wo/CG0xlczd+2O/em" crossorigin="anonymous"></script>
+    <script>
+    
+    let app = new Vue({
+      el: '#app',
+      data: {
+        baseurl: 'http://localhost:3000',
+        quotes: [],
+        user: {
+          email: '',
+          password: ''
+        },
+        quote: {
+          status: ''
+        },
+        translateMsg: '',
+        loginFailedMsg: '',
+        loginSuccessMsg: '',
+        logoutMsg: '',
+        logoutBtn: false,
+        authenticated: false
+      },
+      methods: {
+        deleteQuote: function(id) {
+          let self = this;
+
+          axios({
+            method: 'delete',
+            url: `${self.baseurl}/quotes/${id}`,
+            headers: {
+              access_token: localStorage.getItem('token')
+            }
+          })
+          .then(response => {
+            self.getQuotes();
+          })
+          .catch(err => {
+            console.log(err);
+          });
+        },
+        translateQuote: function(id) {
+          let self = this;
+          let quoteId = id;
+
+          axios({
+            method: 'get',
+            url: `${self.baseurl}/quotes/${quoteId}/translate`
+          })
+          .then(response => {
+            let translated = response.data.translated;
+            self.translateMsg = translated;
+          })
+          .catch(err => {
+            console.log(err);
+          });
+        },
+        createQuote: function() {
+          let self = this;
+
+          axios({
+            method: 'post',
+            url: `${self.baseurl}/quotes`,
+            headers: {
+              access_token: localStorage.getItem('token')
+            },
+            data: {
+              status: self.quote.status
+            }
+          })
+          .then(response => {
+            let data = response.data.quote;
+
+            self.quotes.push(data);
+            self.quote.status = '';
+
+            self.getQuotes();
+          })
+          .catch(err => {
+            console.log(err);
+          });
+        },
+        login: function() {
+          let self = this;
+          
+          axios({
+            method: 'post',
+            url: `${self.baseurl}/users/login`,
+            data: {
+              email: self.user.email,
+              password: self.user.password
+            }
+          })
+          .then(response => {
+            let data = response.data;
+            
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('userId', data.userId);
+            self.logoutBtn = true;
+            self.loginSuccessMsg = 'success login';
+            self.loginFailedMsg = '';
+            self.logoutMsg = '';
+            self.authenticated = true;
+            self.logoutBtn = true;
+            
+          })
+          .catch(err => {
+            self.loginFailedMsg = err.response.data.message;
+            self.loginSuccessMsg = '';
+            self.logoutMsg = '';
+          });
+        },
+        logout: function() {
+          // user1@mail.com
+          localStorage.setItem('token', '');
+          localStorage.setItem('userId', '');
+          this.logoutBtn = false;
+          this.loginSuccessMsg = '';
+          this.loginFailedMsg = '';
+          this.logoutMsg = 'success logout';
+          this.authenticated = false;
+          this.logoutBtn = false;
+        },
+
+        getQuotes: function() {
+          let self = this;
+
+          if(localStorage.getItem('token')) {
+            this.authenticated = true;
+            this.logoutBtn = true;
+          } else {
+            this.authenticated = false;
+            this.logoutBtn = false;
+          }
+
+          axios({
+            method: 'get',
+            url: `${self.baseurl}/quotes`
+          })
+          .then(response => {
+            let data = response.data;
+            let quotes = data.quotes;
+
+            quotes.forEach(quote => {
+              if(quote.user === localStorage.getItem('userId')) {
+                quote.mine = true;
+              } else {
+                quote.mine = false;
+              }
+            });
+
+            self.quotes = quotes;
+          })
+          .catch(err => {
+            console.log(err.message);
+          });
+        }
+      },
+      created: function() {
+        let self = this;
+
+        if(localStorage.getItem('token')) {
+          this.authenticated = true;
+          this.logoutBtn = true;
+        } else {
+          this.authenticated = false;
+          this.logoutBtn = false;
+        }
+
+        axios({
+          method: 'get',
+          url: `${self.baseurl}/quotes`
+        })
+        .then(response => {
+          let data = response.data;
+          let quotes = data.quotes;
+
+          quotes.forEach(quote => {
+            if(quote.user === localStorage.getItem('userId')) {
+              quote.mine = true;
+            } else {
+              quote.mine = false;
+            }
+          });
+
+          self.quotes = quotes;
+        })
+        .catch(err => {
+          console.log(err.message);
+        });
+      }
+    })
+
+    </script>
+
+  </body>
+</html>
